@@ -1,0 +1,33 @@
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel-collector
+    ports:
+      - "4317:4317"
+    volumes:
+      - ./otel-config.yml:/otel-config.yml
+    command: ["--config=/otel-config.yml"]
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    ports:
+      - "9000:9000"
+      - "8123:8123"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  grafana:
+    image: grafana/grafana:latest
+    volumes:
+      - ./grafana.ini:/etc/grafana/grafana.ini:ro
+      - ./datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yaml
+    environment:
+      GF_INSTALL_PLUGINS: grafana-clickhouse-datasource
+    ports:
+      - "3000:3000"
